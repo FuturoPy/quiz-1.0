@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quiz Escolar Dinâmico 🎓</title>
+<style>
+/* --------- Estilos gerais --------- */
+body { margin:0; padding:0; font-family:"Comic Sans MS", Arial, sans-serif; background-color:black; overflow:hidden; }
+
+/* Tela Inicial */
+#tela-inicial { position: fixed; top:0; left:0; width:100%; height:100%; background-image:url('https://uploads.onecompiler.io/444jywmud/447vh5jvb/slogan_1920x1080.png'); background-size:cover; background-position:center; z-index:0; transition:opacity 0.5s ease; }
+#particles { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+#start-btn { position: fixed; top:55%; left:50%; transform:translate(-50%,-50%); font-size:36px; font-weight:bold; color:white; background-color: rgba(0,0,0,0.6); border:none; border-radius:15px; padding:20px 60px; cursor:pointer; transition:0.3s; z-index:10; }
+#start-btn:hover{ color:#00ffff; }
+
+/* Botões de Mute */
+#controle-audio {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: auto;
+  z-index: 10050;
+  display:flex;
+  gap: 8px;
+  align-items:center;
+}
+#btn-user-off, #btn-user-on {
+  width: 90px;
+  height: auto;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform .15s;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  border-radius:8px;
+  background: rgba(0,0,0,0.2);
+  padding:4px;
+}
+#btn-user-off:hover, #btn-user-on:hover { transform: scale(1.06); }
+
+/* Menu de Fases */
+#menu-fases { display:none; position:fixed; top:0; left:0; width:100%; height:100vh; background-image:url('https://uploads.onecompiler.io/444jywmud/44pumtv56/sala%20de%20aula.png'); background-size:cover; background-position:center; z-index:5; flex-direction:column; justify-content:center; align-items:center; color:white; }
+.grid-fases { display:grid; grid-template-columns: repeat(5, 100px); gap: 20px; background: rgba(0,0,0,0.75); padding: 30px; border-radius: 20px; border: 2px solid #fff; }
+.btn-fase { width:100px; height:100px; font-size:32px; font-weight:bold; color:white; background: rgba(255,255,255,0.1); border: 2px solid white; border-radius:15px; cursor:pointer; transition:0.2s; display:flex; justify-content:center; align-items:center; text-shadow: 2px 2px 4px #000; }
+.btn-fase:hover { background:#00ffff; color:black; transform:scale(1.08); }
+.btn-fase.respondida { border-color: #00ff99; background: rgba(0,255,153,0.4); box-shadow: 0 0 15px rgba(0,255,153,0.6); }
+.btn-fase.bloqueada { opacity: 0.4; cursor: not-allowed; }
+.btn-fase.bloqueada:hover { background: rgba(255,255,255,0.1); color: white; transform: none; }
+
+/* Botão Voltar ao Início no Menu de Fases */
+#btn-voltar-inicio {
+  margin-top: 25px;
+  padding: 12px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #ffaa00;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+#btn-voltar-inicio:hover {
+  transform: scale(1.05);
+  background-color: #ffcc00;
+}
+
+/* Quiz */
+.quiz-container { display:none; width:100%; height:100vh; background-image:url('https://uploads.onecompiler.io/444jywmud/44pumtv56/sala%20de%20aula.png'); background-size:cover; background-position:center; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 1s ease; z-index: 6; }
+.area-jogo { display:flex; justify-content:center; align-items:center; gap:50px; padding:20px; box-sizing:border-box; }
+.professor { width:350px; height:450px; background-size:contain; background-repeat:no-repeat; background-position:bottom center; animation: idle 3s ease-in-out infinite; display:none; }
+
+/* Animações */
+@keyframes idle{0%{transform:translateY(0);}50%{transform:translateY(-4px);}100%{transform:translateY(0);} }
+@keyframes shake{0%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}100%{transform:translateX(0)}}
+@keyframes jump{0%{transform:translateY(0)}30%{transform:translateY(-18px)}60%{transform:translateY(0)}100%{transform:translateY(0)}}
+
+/* Quadro */
+.quadro-fundo { width:600px; max-width:92vw; height:430px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; text-align:center; color:white; text-shadow:2px 2px 4px black,0 0 3px white; padding:20px; box-sizing:border-box; position: relative; }
+
+/* Container com máscara de corte para o texto rolar sem vazar */
+.container-pergunta-rolavel {
+  width: 100%;
+  height: 110px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 15px;
+  margin-top: 10px;
+}
+
+#question { 
+  font-size:22px; 
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  word-wrap:break-word; 
+  white-space: normal;
+}
+
+/* Respostas */
+#answers { display:flex; flex-direction:column; gap:12px; width:100%; align-items:center; justify-content:center; }
+#answers button { background-color:transparent; color:white; border:2px solid #ffffff30; border-radius:10px; padding:12px 20px; font-size:18px; cursor:pointer; text-align:center; transition:0.18s; width:80%; }
+#answers button:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.03); }
+#answers button:disabled { cursor:not-allowed; opacity:0.55; transform:none; }
+
+/* Marcações */
+#answers button.selecionada { box-shadow: 0 0 12px #ffffff40; transform: none; }
+#answers button.correta { color:#00ff99; border-color:#00ff99; font-weight:bold; background-color: rgba(0, 255, 153, 0.1); }
+#answers button.errada { color:#ff9999; border-color:#ff9999; font-weight:bold; background-color: rgba(255, 153, 153, 0.1); }
+
+/* Feedback */
+.feedback { font-size:22px; font-weight:bold; margin-top:10px; text-shadow:1px 1px 2px black,0 0 3px white; min-height:28px; }
+.correct { color:#00ff99; }
+.wrong { color:#ff9999; }
+
+/* Navegação */
+#quiz-controles { margin-top:15px; display:flex; justify-content:center; gap:15px; }
+#quiz-controles img { width:150px; cursor:pointer; transition:0.3s; }
+#quiz-controles img:hover { transform:scale(1.1); }
+
+/* Login professor */
+#professor-login { position:fixed; top:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:white; padding:15px; border-radius:15px; z-index:20; }
+
+/* Cadastro/Editor de Questões */
+#cadastro-perguntas { display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.95); color:white; padding:20px; border-radius:15px; z-index:25; max-height:90vh; overflow-y:auto; width:420px; box-sizing:border-box; border:2px solid #fff; }
+#cadastro-perguntas input, #cadastro-perguntas select, #cadastro-perguntas button { width: 100%; margin-bottom: 8px; padding: 8px; border-radius: 5px; border: none; box-sizing: border-box; }
+#cadastro-perguntas button { background-color: #00ffff; color: black; font-weight: bold; cursor: pointer; }
+.grid-fases-professor { display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; margin-top:8px; margin-bottom:15px; }
+.btn-fase-prof { padding:6px 0; font-size:12px; font-weight:bold; background: rgba(255,255,255,0.2); border:1px solid #fff; color:white; border-radius:5px; cursor:pointer; text-align:center; }
+.btn-fase-prof.ativa { background:#00ffff; color:black; }
+
+/* Botões de Ação do Editor (Sair / Menu) */
+.botoes-editor-container { display: flex; gap: 8px; margin-bottom: 12px; }
+.botoes-editor-container button { margin-bottom: 0 !important; }
+#btn-sair-edicao { background-color: #ff4444 !important; color: white !important; }
+#btn-sair-edicao:hover { background-color: #cc3333 !important; }
+#btn-voltar-menu { background-color: #ffaa00 !important; color: black !important; }
+#btn-voltar-menu:hover { background-color: #e69900 !important; }
+
+/* Lista de perguntas no editor */
+.lista-perguntas-fase { border-top: 1px dashed #fff; margin-top: 10px; padding-top: 10px; max-height: 180px; overflow-y: auto; }
+.item-pergunta { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.1); padding: 6px; margin-bottom: 4px; border-radius: 4px; font-size: 13px; gap: 5px; }
+.item-pergunta span { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.botoes-item { display: flex; gap: 4px; flex-shrink: 0; }
+.btn-editar-p { background: #666 !important; color: white !important; width: auto !important; padding: 2px 8px !important; margin: 0 !important; font-size: 11px; }
+.btn-deletar-p { background: #ff4444 !important; color: white !important; width: auto !important; padding: 2px 8px !important; margin: 0 !important; font-size: 11px; }
+.btn-cancelar-edicao { background: #ffaa00 !important; color: black !important; font-weight: bold; }
+
+/* Responsivo */
+@media (max-width:900px){
+  #controle-audio { right: 10px; bottom: 10px; }
+  .area-jogo { flex-direction:column; gap:20px; }
+  .professor { width:260px; height:320px; }
+  .quadro-fundo { width:90vw; height:auto; padding:16px; }
+  #quiz-controles img { width:110px; }
+  .grid-fases { grid-template-columns: repeat(4, 70px); gap: 10px; padding:15px; }
+  .btn-fase { width:70px; height:70px; font-size:22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Música de Fundo -->
+<audio id="musica-fundo" loop>
+  <source src="https://files.catbox.moe/6t7x4j.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Controle de áudio -->
+<div id="controle-audio">
+  <img id="btn-user-on" src="https://uploads.onecompiler.io/444jywmud/444jyqxv3/Captura%20de%20tela%202025-11-18%20203955.png">
+  <img id="btn-user-off" src="https://uploads.onecompiler.io/444jywmud/444jyqxv3/Captura%20de%20tela%202025-11-18%20204125.png" style="display:none">
+</div>
+
+<div id="tela-inicial"><canvas id="particles"></canvas></div>
+<button id="start-btn">START</button>
+
+<!-- Menu de Seleção de Fases -->
+<div id="menu-fases">
+  <h2 style="margin-bottom:20px; text-shadow: 2px 2px 5px black; font-size:32px; font-family:sans-serif;">Escolha uma Fase 🎓</h2>
+  <div class="grid-fases" id="grid-fases-container">
+    <!-- Gerado via JavaScript -->
+  </div>
+  <button id="btn-voltar-inicio" onclick="voltarParaTelaInicial()">VOLTAR AO INÍCIO</button>
+</div>
+
+<!-- Login professor -->
+<div id="professor-login">
+  <input type="password" id="senha-professor" placeholder="Senha professor"/>
+  <button onclick="entrarProfessor()">Entrar</button>
+</div>
+
+<!-- Cadastro/Editor de Questões por Fase -->
+<div id="cadastro-perguntas">
+  <!-- Container dos botões superiores integrado perfeitamente -->
+  <div class="botoes-editor-container">
+    <button id="btn-sair-edicao" onclick="sairEdicao()">SAIR</button>
+    <button id="btn-voltar-menu" onclick="voltarAoMenuFases()" style="display: none;">VOLTAR AO MENU</button>
+  </div>
+
+  <h3 id="titulo-editor" style="margin-top:0; color:#00ffff; font-family:sans-serif;">Editando Fase 1</h3>
+  
+  <p style="margin: 5px 0; font-size:12px; font-weight:bold; font-family:sans-serif;">Selecione a fase para gerenciar:</p>
+  <div class="grid-fases-professor" id="fases-prof-container">
+    <!-- Atalhos das 20 fases -->
+  </div>
+
+  <div style="border: 1px solid #ffffff40; padding: 10px; border-radius: 8px;">
+    <span id="label-formulario" style="font-size: 14px; font-weight: bold; color: #00ff99;">Adicionar Nova Pergunta:</span>
+    <input type="text" id="nova-pergunta" placeholder="Digite a pergunta"/>
+    <input type="text" id="alt1" placeholder="Alternativa 1"/>
+    <input type="text" id="alt2" placeholder="Alternativa 2"/>
+    <input type="text" id="alt3" placeholder="Alternativa 3"/>
+    <select id="certa">
+      <option value="0">Alternativa 1</option>
+      <option value="1">Alternativa 2</option>
+      <option value="2">Alternativa 3</option>
+    </select>
+    <button id="btn-salvar-pergunta" onclick="adicionarOuSalvarPergunta()">Adicionar Pergunta</button>
+    <button id="btn-cancelar-edicao" class="btn-cancelar-edicao" onclick="cancelarEdicaoPergunta()" style="display: none;">Cancelar Edição</button>
+  </div>
+  
+  <p style="margin: 15px 0 5px 0; font-size:13px; font-weight:bold; color: #00ffff;">Perguntas cadastradas nesta fase:</p>
+  <div class="lista-perguntas-fase" id="lista-perguntas-fase-container">
+    <!-- Lista dinâmica de perguntas da fase ativa -->
+  </div>
+</div>
+
+<!-- Quiz -->
+<div class="quiz-container" id="quiz-container">
+  <div class="area-jogo">
+    <div class="professor" id="professor"></div>
+
+    <div class="quadro-fundo">
+      <!-- Container com corte automático de tela -->
+      <div class="container-pergunta-rolavel">
+         <div id="question"></div>
+      </div>
+      
+      <div id="answers"></div>
+      <div id="feedback" class="feedback"></div>
+
+      <div id="quiz-controles">
+        <img id="btn-voltar-pergunta" src="https://uploads.onecompiler.io/444jywmud/444jyqxv3/voltar%20pergunta.png">
+        <img id="btn-avancar-pergunta" src="https://uploads.onecompiler.io/444jywmud/444jyqxv3/avan%C3%A7ar%20pergunta.png">
+        <img id="btn-terminar" src="https://uploads.onecompiler.io/444jywmud/444jyqxv3/terminar.png">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= ÁUDIO ================= */
+const musica = document.getElementById("musica-fundo");
+const btnUserOn = document.getElementById("btn-user-on");
+const btnUserOff = document.getElementById("btn-user-off");
+
+musica.volume = 0.35;
+musica.play().catch(()=>{});
+
+btnUserOn.onclick = () => {
+  musica.muted = true;
+  btnUserOn.style.display = "none";
+  btnUserOff.style.display = "inline-block";
+};
+btnUserOff.onclick = () => {
+  musica.muted = false;
+  btnUserOff.style.display = "none";
+  btnUserOn.style.display = "inline-block";
+};
+
+/* ================= ESTRUTURA DE BANCO DE DADOS ================= */
+let bancoFases = {};
+let historicoFases = {}; 
+let imgFrames = [
+  "https://uploads.onecompiler.io/444jywmud/444jyqxv3/professora%20frame%201.png",
+  "https://uploads.onecompiler.io/444jywmud/444jyqxv3/professora%20frame%202.png",
+  "https://uploads.onecompiler.io/444jywmud/444jyqxv3/professora%20frame%203.png"
+];
+let imgCerta = "https://uploads.onecompiler.io/444jywmud/444jyqxv3/joinhaa.png";
+let imgErrada = "https://uploads.onecompiler.io/444jywmud/444jyqxv3/errada.png";
+let faseAtual = 0; 
+let perguntaFaseIndice = 0; 
+let faseEditorAtiva = 0; 
+let pontuacaoFase = 0;
+let escreverVelocidade = 40;
+
+// Variável para controlar qual pergunta está sendo editada (-1 significa que está criando uma nova)
+let indicePerguntaSendoEditada = -1; 
+
+let respostasDaFaseAtual = {};
+let professorEl = document.getElementById("professor");
+let feedback = document.getElementById("feedback");
+let quizContainer = document.getElementById("quiz-container");
+let telaInicial = document.getElementById("tela-inicial");
+let startBtn = document.getElementById("start-btn");
+let menuFases = document.getElementById("menu-fases");
+const btnSair = document.getElementById("btn-sair-edicao");
+const btnMenu = document.getElementById("btn-voltar-menu");
+
+let intervaloRolagem = null;
+let posicaoScrollY = 0;
+
+function salvarBancoNoStorage(){
+  localStorage.setItem("quizFasesMultiPerguntas", JSON.stringify(bancoFases));
+}
+
+function salvarHistoricoNoStorage(){
+  localStorage.setItem("quizHistoricoFases", JSON.stringify(historicoFases));
+}
+
+function inicializarBanco(){
+  const dados = localStorage.getItem("quizFasesMultiPerguntas");
+  const dadosHistorico = localStorage.getItem("quizHistoricoFases");
+  
+  try {
+    if(dadosHistorico) {
+      historicoFases = JSON.parse(dadosHistorico);
+    }
+    
+    if(dados){
+      bancoFases = JSON.parse(dados);
+      for(let i = 0; i < 20; i++){
+        if(!bancoFases[i]) bancoFases[i] = [];
+      }
+    } else {
+      for(let i = 0; i < 20; i++){
+        bancoFases[i] = [];
+      }
+      bancoFases[0].push({
+        pergunta: "Bem-vindo! Qual é a capital do Brasil?",
+        opcoes: ["Rio de Janeiro", "Brasília", "São Paulo"],
+        certa: 1
+      });
+      salvarBancoNoStorage();
+    }
+  } catch(e) {
+    bancoFases = {};
+    historicoFases = {};
+    for(let i = 0; i < 20; i++){
+      bancoFases[i] = [];
+    }
+    bancoFases[0].push({
+      pergunta: "Bem-vindo! Qual é a capital do Brasil?",
+      opcoes: ["Rio de Janeiro", "Brasília", "São Paulo"],
+      certa: 1
+    });
+    salvarBancoNoStorage();
+    salvarHistoricoNoStorage();
+  }
+  construirMenuFases();
+  construirAtalhosProfessor();
+}
+
+/* ================= CONSTRUÇÃO DOS LAYOUTS DOS 20 QUADRADOS ================= */
+function construirMenuFases() {
+  const container = document.getElementById("grid-fases-container");
+  container.innerHTML = "";
+  
+  for(let i = 0; i < 20; i++) {
+    const btn = document.createElement("button");
+    btn.className = "btn-fase";
+    
+    let totalPerguntas = bancoFases[i] ? bancoFases[i].length : 0;
+    
+    if(totalPerguntas === 0){
+      btn.classList.add("bloqueada");
+      btn.title = "Fase sem perguntas cadastradas";
+    } else if(historicoFases[i]) {
+      btn.classList.add("respondida");
+      btn.title = "Fase já respondida (Modo Revisão)";
+    }
+    
+    btn.textContent = i + 1;
+    btn.onclick = () => {
+      if(totalPerguntas > 0) iniciarFaseEspecifica(i);
+      else alert("Esta fase ainda não possui perguntas cadastradas pelo professor!");
+    };
+    container.appendChild(btn);
+  }
+}
+
+function construirAtalhosProfessor() {
+  const container = document.getElementById("fases-prof-container");
+  container.innerHTML = "";
+  
+  for(let i = 0; i < 20; i++) {
+    const btn = document.createElement("div");
+    btn.className = "btn-fase-prof";
+    btn.id = `prof-fase-${i}`;
+    btn.textContent = i + 1;
+    btn.onclick = () => carregarFaseNoEditor(i);
+    container.appendChild(btn);
+  }
+}
+
+/* ================= CONTROLE DO PAINEL DO PROFESSOR ================= */
+function entrarProfessor(){
+  const senha = document.getElementById("senha-professor").value;
+  if(senha === "2702"){
+    document.getElementById("cadastro-perguntas").style.display = "block";
+    btnSair.style.display = "block";
+    document.getElementById("professor-login").style.display = "none";
+    carregarFaseNoEditor(0);
+  } else {
+    alert("Senha incorreta!");
+  }
+}
+
+function sairEdicao(){
+  cancelarEdicaoPergunta();
+  document.getElementById("cadastro-perguntas").style.display="none";
+  document.getElementById("professor-login").style.display="block";
+  document.getElementById("senha-professor").value="";
+}
+
+function carregarFaseNoEditor(i) {
+  cancelarEdicaoPergunta();
+  faseEditorAtiva = i;
+  document.getElementById("titulo-editor").textContent = `Editando Fase ${i + 1}`;
+  
+  document.querySelectorAll(".btn-fase-prof").forEach(btn => btn.classList.remove("ativa"));
+  const btnProfAtivo = document.getElementById(`prof-fase-${i}`);
+  if(btnProfAtivo) btnProfAtivo.classList.add("ativa");
+  
+  limparFormularioPergunta();
+  atualizarListaPerguntasEditor();
+}
+
+function atualizarListaPerguntasEditor() {
+  const container = document.getElementById("lista-perguntas-fase-container");
+  container.innerHTML = "";
+  
+  const lista = bancoFases[faseEditorAtiva] || [];
+  
+  if(lista.length === 0){
+    container.innerHTML = "<p style='font-size:12px; color:gray;'>Nenhuma pergunta nesta fase ainda.</p>";
+    return;
+  }
+  
+  lista.forEach((p, index) => {
+    const item = document.createElement("div");
+    item.className = "item-pergunta";
+    item.innerHTML = `
+      <span title="${p.pergunta}">${index + 1}. ${p.pergunta}</span>
+      <div class="botoes-item">
+        <button class="btn-editar-p" onclick="iniciarEdicaoPergunta(${index})">Editar</button>
+        <button class="btn-deletar-p" onclick="deletarPergunta(${index})">Excluir</button>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+function iniciarEdicaoPergunta(index) {
+  const perguntaObj = bancoFases[faseEditorAtiva][index];
+  if(!perguntaObj) return;
+
+  indicePerguntaSendoEditada = index;
+  
+  // Preenche o formulário com os dados da pergunta selecionada
+  document.getElementById("nova-pergunta").value = perguntaObj.pergunta;
+  document.getElementById("alt1").value = perguntaObj.opcoes[0] || "";
+  document.getElementById("alt2").value = perguntaObj.opcoes[1] || "";
+  document.getElementById("alt3").value = perguntaObj.opcoes[2] || "";
+  document.getElementById("certa").value = perguntaObj.certa;
+
+  // Altera os textos da interface para o modo de Edição
+  document.getElementById("label-formulario").textContent = `Editando Pergunta ${index + 1}:`;
+  document.getElementById("label-formulario").style.color = "#ffaa00";
+  document.getElementById("btn-salvar-pergunta").textContent = "Salvar Alterações";
+  document.getElementById("btn-salvar-pergunta").style.backgroundColor = "#ffaa00";
+  document.getElementById("btn-cancelar-edicao").style.display = "block";
+}
+
+function cancelarEdicaoPergunta() {
+  indicePerguntaSendoEditada = -1;
+  limparFormularioPergunta();
+  
+  // Restaura os elementos visuais para o modo de Adição
+  document.getElementById("label-formulario").textContent = "Adicionar Nova Pergunta:";
+  document.getElementById("label-formulario").style.color = "#00ff99";
+  document.getElementById("btn-salvar-pergunta").textContent = "Adicionar Pergunta";
+  document.getElementById("btn-salvar-pergunta").style.backgroundColor = "#00ffff";
+  document.getElementById("btn-cancelar-edicao").style.display = "none";
+}
+
+function limparFormularioPergunta() {
+  document.getElementById("nova-pergunta").value = "";
+  document.getElementById("alt1").value = "";
+  document.getElementById("alt2").value = "";
+  document.getElementById("alt3").value = "";
+  document.getElementById("certa").value = "0";
+}
+
+function adicionarOuSalvarPergunta() {
+  const pergunta = document.getElementById("nova-pergunta").value.trim();
+  const opcoes = [
+    document.getElementById("alt1").value.trim(),
+    document.getElementById("alt2").value.trim(),
+    document.getElementById("alt3").value.trim()
+  ];
+  const cierta = parseInt(document.getElementById("certa").value);
+
+  if(!pergunta || opcoes.some(o => o === "")) return alert("Preencha todos os campos para salvar a pergunta!");
+
+  if(!bancoFases[faseEditorAtiva]) bancoFases[faseEditorAtiva] = [];
+
+  if (indicePerguntaSendoEditada === -1) {
+    // Modo de criação: Adiciona uma nova pergunta
+    bancoFases[faseEditorAtiva].push({ pergunta, opcoes, certa: cierta });
+  } else {
+    // Modo de edição: Substitui os valores na posição correta do array
+    bancoFases[faseEditorAtiva][indicePerguntaSendoEditada] = { pergunta, opcoes, certa: cierta };
+  }
+  
+  // Limpa o histórico de travamento da fase para que os alunos possam jogar com as mudanças
+  if(historicoFases[faseEditorAtiva]) {
+    delete historicoFases[faseEditorAtiva];
+    salvarHistoricoNoStorage();
+  }
+  
+  salvarBancoNoStorage();
+  atualizarListaPerguntasEditor();
+  construirMenuFases();
+  cancelarEdicaoPergunta(); // Volta o formulário para o estado padrão
+}
+
+function deletarPergunta(index) {
+  if(confirm("Tem certeza que deseja excluir esta pergunta?")) {
+    // Se a pergunta deletada for a que estava em edição, cancela o modo edição
+    if(indicePerguntaSendoEditada === index) {
+      cancelarEdicaoPergunta();
+    }
+    
+    bancoFases[faseEditorAtiva].splice(index, 1);
+    
+    if(historicoFases[faseEditorAtiva]) {
+      delete historicoFases[faseEditorAtiva];
+      salvarHistoricoNoStorage();
+    }
+    
+    salvarBancoNoStorage();
+    atualizarListaPerguntasEditor();
+    construirMenuFases();
+  }
+}
+
+/* ================= FLUXO DO JOGO DO ALUNO ================= */
+startBtn.onclick = ()=>{
+  telaInicial.style.opacity = 0; 
+  startBtn.style.opacity = 0;
+  setTimeout(()=>{
+    telaInicial.style.display = "none";
+    document.getElementById("professor-login").style.display = "none";
+    document.getElementById("cadastro-perguntas").style.display = "none";
+    document.getElementById("controle-audio").style.display = "none";
+    
+    menuFases.style.display = "flex";
+    construirMenuFases();
+  }, 500);
+};
+
+function voltarParaTelaInicial() {
+  menuFases.style.display = "none";
+  telaInicial.style.display = "block";
+  
+  setTimeout(() => {
+    telaInicial.style.opacity = 1;
+    startBtn.style.opacity = 1;
+    document.getElementById("professor-login").style.display = "block";
+    document.getElementById("controle-audio").style.display = "flex";
+  }, 50);
+}
+
+function iniciarFaseEspecifica(i) {
+  const listaPerguntas = bancoFases[i] || [];
+  if(listaPerguntas.length === 0) {
+    alert("Esta fase não possui perguntas!");
+    return;
+  }
+
+  faseAtual = i;
+  perguntaFaseIndice = 0;
+  
+  if(historicoFases[i]) {
+    respostasDaFaseAtual = JSON.parse(JSON.stringify(historicoFases[i].respostas));
+    pontuacaoFase = historicoFases[i].pontos;
+  } else {
+    respostasDaFaseAtual = {}; 
+    pontuacaoFase = 0;
+  }
+  
+  menuFases.style.display = "none";
+  quizContainer.style.display = "flex";
+  
+  // Exibe o botão de retornar ao menu de fases dentro do painel do professor (se aberto)
+  document.getElementById("cadastro-perguntas").style.display === "block" ? btnMenu.style.display = "block" : btnMenu.style.display = "none";
+  
+  setTimeout(()=> quizContainer.style.opacity = 1, 50);
+  professorEl.style.display = "block";
+  professorEl.style.backgroundImage = `url(${imgFrames[0]})`;
+  
+  mostrarPerguntaDoJogo();
+}
+
+function voltarAoMenuFases() {
+  if(escreverIntervalo) clearInterval(escreverIntervalo);
+  if(intervaloRolagem) clearInterval(intervaloRolagem);
+  quizContainer.style.display = "none";
+  quizContainer.style.opacity = 0;
+  btnMenu.style.display = "none";
+  menuFases.style.display = "flex";
+  construirMenuFases();
+}
+
+/* ================= EXECUÇÃO DO QUIZ NA TELA ================= */
+function desativarRespostasAtuais(){
+  document.querySelectorAll("#answers button").forEach(btn => btn.disabled = true);
+}
+
+let escreverIntervalo = null;
+async function escreverNoQuadro(elemento, texto){
+  elemento.textContent = "";
+  elemento.style.top = "0px"; 
+  if(escreverIntervalo) clearInterval(escreverIntervalo);
+  if(intervaloRolagem) clearInterval(intervaloRolagem);
+
+  return new Promise(resolve=>{
+    let i=0, frameIndex=0;
+    escreverIntervalo = setInterval(()=>{
+      elemento.textContent += texto[i] ?? "";
+      professorEl.style.backgroundImage = `url(${imgFrames[frameIndex]})`;
+      frameIndex = (frameIndex + 1) % imgFrames.length;
+      i++;
+      if(i >= texto.length){
+        clearInterval(escreverIntervalo);
+        escreverIntervalo = null;
+        professorEl.style.backgroundImage = `url(${imgFrames[0]})`;
+        
+        verificarEAtivarRolagem(elemento);
+        resolve();
+      }
+    }, escreverVelocidade);
+  });
+}
+
+function verificarEAtivarRolagem(elemento) {
+  const alturaDisponivel = 110; 
+  const alturaRealTexto = elemento.offsetHeight;
+
+  if (alturaRealTexto > alturaDisponivel) {
+    posicaoScrollY = 0;
+    intervaloRolagem = setInterval(() => {
+      posicaoScrollY -= 0.5; 
+      
+      if (Math.abs(posicaoScrollY) > alturaRealTexto) {
+        posicaoScrollY = alturaDisponivel;
+      }
+      elemento.style.top = posicaoScrollY + "px";
+    }, 25);
+  }
+}
+
+async function mostrarPerguntaDoJogo(){
+  const listaPerguntas = bancoFases[faseAtual] || [];
+  const q = listaPerguntas[perguntaFaseIndice];
+  
+  if(!q) {
+    document.getElementById("question").textContent = "Nenhuma pergunta encontrada.";
+    return;
+  }
+  
+  const respostasDiv = document.getElementById("answers");
+  respostasDiv.innerHTML = "";
+  feedback.textContent = "";
+
+  await escreverNoQuadro(document.getElementById("question"), q.pergunta);
+
+  const eFaseConcluida = !!historicoFases[faseAtual];
+
+  if(q.opcoes && Array.isArray(q.opcoes)) {
+    q.opcoes.forEach((opcao, i)=>{
+      const btn = document.createElement("button");
+      btn.textContent = opcao;
+      btn.dataset.index = i;
+
+      const salvo = respostasDaFaseAtual[perguntaFaseIndice];
+      
+      if(eFaseConcluida) {
+        btn.disabled = true;
+        if(salvo && salvo.choice === i) {
+          btn.classList.add("selecionada");
+          if(salvo.correct) btn.classList.add("correta");
+          else btn.classList.add("errada");
+        } else if(i === q.certa) {
+          btn.classList.add("correta");
+        }
+      } else {
+        if(salvo){
+          btn.disabled = true;
+          if(salvo.choice === i){
+            btn.classList.add("selecionada");
+            if(salvo.correct) btn.classList.add("correta");
+            else btn.classList.add("errada");
+          }
+        } else {
+          btn.onclick = ()=> checarRespostaJogo(i === q.certa, i);
+        }
+      }
+
+      respostasDiv.appendChild(btn);
+    });
+  }
+
+  const salvo = respostasDaFaseAtual[perguntaFaseIndice];
+  if(salvo){
+    if(salvo.correct){
+      feedback.textContent = eFaseConcluida ? "Você acertou esta!" : "Muito bem!";
+      feedback.className = "feedback correct";
+      professorEl.style.backgroundImage = `url(${imgCerta})`;
+    } else {
+      feedback.textContent = eFaseConcluida ? "Você errou esta!" : "Tente novamente!";
+      feedback.className = "feedback wrong";
+      professorEl.style.backgroundImage = `url(${imgErrada})`;
+    }
+  } else {
+    feedback.textContent = "";
+    feedback.className = "feedback";
+    professorEl.style.backgroundImage = `url(${imgFrames[0]})`;
+    professorEl.style.animation = "idle 3s ease-in-out infinite";
+  }
+}
+
+function checarRespostaJogo(certa, choiceIndex){
+  if(historicoFases[faseAtual]) return;
+
+  respostasDaFaseAtual[perguntaFaseIndice] = { choice: choiceIndex, correct: certa };
+  desativarRespostasAtuais();
+
+  document.querySelectorAll("#answers button").forEach(btn=>{
+    const idx = parseInt(btn.dataset.index);
+    if(idx === choiceIndex){
+      btn.classList.add("selecionada");
+      if(certa) btn.classList.add("correta");
+      else btn.classList.add("errada");
+    }
+  });
+
+  professorEl.style.animation = "";
+  if(certa){
+    pontuacaoFase++;
+    feedback.textContent = "Muito bem!";
+    feedback.className = "feedback correct";
+    professorEl.style.backgroundImage = `url(${imgCerta})`;
+    professorEl.style.animation = "jump 0.6s";
+  } else {
+    feedback.textContent = "Tente novamente!";
+    feedback.className = "feedback wrong";
+    professorEl.style.backgroundImage = `url(${imgErrada})`;
+    professorEl.style.animation = "shake 0.5s";
+  }
+}
+
+/* ================= NAVEGAÇÃO DOS BOTÕES DO QUIZ ================= */
+document.getElementById("btn-avancar-pergunta").onclick = ()=>{
+  const lista = bancoFases[faseAtual] || [];
+  if(perguntaFaseIndice < lista.length - 1){
+    perguntaFaseIndice++;
+    mostrarPerguntaDoJogo();
+  } else {
+    if(historicoFases[faseAtual]) {
+      alert("Você chegou ao fim da revisão desta fase!");
+    } else {
+      alert("Você chegou ao final das perguntas desta fase! Clique em TERMINAR para ver seu resultado.");
+    }
+  }
+};
+
+document.getElementById("btn-voltar-pergunta").onclick = ()=>{
+  if(perguntaFaseIndice > 0){
+    perguntaFaseIndice--;
+    mostrarPerguntaDoJogo();
+  }
+};
+
+document.getElementById("btn-terminar").onclick = ()=> mostrarFimFase();
+
+/* ================= TELA FINAL DA FASE ================= */
+function mostrarFimFase(){
+  if(intervaloRolagem) clearInterval(intervaloRolagem);
+  quizContainer.style.display = "none";
+  btnMenu.style.display = "none";
+
+  if(!historicoFases[faseAtual]) {
+    historicoFases[faseAtual] = {
+      respostas: JSON.parse(JSON.stringify(respostasDaFaseAtual)),
+      pontos: pontuacaoFase
+    };
+    salvarHistoricoNoStorage();
+  }
+
+  let fimDiv = document.createElement("div");
+  fimDiv.style.position = "fixed";
+  fimDiv.style.top = "0"; fimDiv.style.left = "0";
+  fimDiv.style.width = "100%"; fimDiv.style.height = "100%";
+  fimDiv.style.display = "flex";
+  fimDiv.style.flexDirection = "column";
+  fimDiv.style.justifyContent = "center";
+  fimDiv.style.alignItems = "center";
+  fimDiv.style.backgroundImage = "url('https://uploads.onecompiler.io/444jywmud/44pumtv56/sala%20de%20aula.png')";
+  fimDiv.style.backgroundSize = "cover";
+  fimDiv.style.backgroundPosition = "center";
+  fimDiv.style.color = "white";
+  fimDiv.style.fontSize = "28px";
+  fimDiv.style.textAlign = "center";
+  fimDiv.id = "tela-fim";
+
+  let totalPerguntasFase = bancoFases[faseAtual] ? bancoFases[faseAtual].length : 0;
+  fimDiv.innerHTML = `Fase ${faseAtual + 1} Finalizada!<br>Você acertou <b>${pontuacaoFase} de ${totalPerguntasFase}</b> perguntas.<br>`;
+
+  if(totalPerguntasFase > 0 && pontuacaoFase === totalPerguntasFase){
+    let imgConquista = document.createElement("img");
+    imgConquista.src = "https://uploads.onecompiler.io/444jywmud/444jyqxv3/Captura%20de%20tela%202025-11-14%20003933.png";
+    imgConquista.style.width = "150px";
+    imgConquista.style.marginTop = "15px";
+    fimDiv.appendChild(imgConquista);
+
+    let textoConquista = document.createElement("div");
+    textoConquista.innerHTML = "<b>Perfeito! Concluído com Nota 10!</b>";
+    textoConquista.style.fontSize = "26px";
+    textoConquista.style.marginTop = "10px";
+    fimDiv.appendChild(textoConquista);
+  }
+
+  let btnVoltar = document.createElement("img");
+  btnVoltar.src = "https://uploads.onecompiler.io/444jywmud/444jyqxv3/botao%20de%20voltar.png";
+  btnVoltar.style.width = "180px";
+  btnVoltar.style.cursor = "pointer";
+  btnVoltar.style.marginTop = "40px";
+  btnVoltar.onclick = ()=>{ 
+    fimDiv.remove(); 
+    resetarJogoParaMenu(); 
+  };
+
+  fimDiv.appendChild(btnVoltar);
+  document.body.appendChild(fimDiv);
+}
+
+function resetarJogoParaMenu(){
+  respostasDaFaseAtual = {};
+  perguntaFaseIndice = 0;
+  pontuacaoFase = 0;
+
+  quizContainer.style.display = "none";
+  quizContainer.style.opacity = 0;
+  
+  menuFases.style.display = "flex";
+  construirMenuFases();
+}
+
+inicializarBanco();
+</script>
+</body>
+</html>
+</html>
